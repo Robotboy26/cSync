@@ -8,6 +8,7 @@ import sys
 import subprocess
 import pysftp
 import time
+import argparse
 import numpy as np
 from datetime import datetime
 from dotenv import load_dotenv
@@ -276,6 +277,28 @@ def main():
     TARGET_COMPUTER = os.getenv('TARGET_COMPUTER')
     USERNAME = os.getenv('USERNAME')
     PASSWORD = os.getenv('PASSWORD')
+    parser = argparse.ArgumentParser(description="Sync files between local and remote directories.")
+    parser.add_argument('folderPath', metavar='folderPath', type=str, nargs='?',
+                        help='the local directory to be synced')
+    parser.add_argument('-d', '--destination', type=str, help='Specify the destination in format <username@ip>')
+    args = parser.parse_args()
+
+    if args.destination:
+        dest = args.destination
+        username, target = dest.split("@")
+    else:
+        username, target = None, None
+
+    # if args not pass the args from the .env file
+    if username == None and target == None:
+        username = USERNAME
+        target = TARGET_COMPUTER
+
+    if PASSWORD == None:
+        password = input(f"type the password for {username} at {target}: ")
+    else:
+        password = PASSWORD
+
     syncFile = "data/sync.csync"
     syncCheckFile = "data/syncCheck.csync"
     targetSyncCheckFile = "targetSyncCheck.csync"
@@ -297,7 +320,7 @@ def main():
         
     md5s, sha256s = mchecksums(files, syncFile, syncCheckFile)
     genCheckFile(files, md5s, sha256s, syncCheckFile)
-    getChecksumFile(f"~/{targetPath}", f"cSync/src/{syncCheckFile}", targetSyncCheckFile, USERNAME, TARGET_COMPUTER)
+    getChecksumFile(f"~/{targetPath}", f"cSync/src/{syncCheckFile}", targetSyncCheckFile, username, target)
     if os.path.isfile(targetSyncCheckFile):
         if quickCompareCheck(syncCheckFile, targetSyncCheckFile):
             os.remove(targetSyncCheckFile) # remove the check file gotten from the target computer once it is does being used
@@ -305,16 +328,14 @@ def main():
         else:
             modifiedFiles, removeFiles = fullCompareCheck(syncCheckFile, targetSyncCheckFile)
             print("here2")
-            scp(modifiedFiles, folderPath, targetPath, USERNAME, PASSWORD, TARGET_COMPUTER, removeFiles)
+            scp(modifiedFiles, folderPath, targetPath, username, password, target, removeFiles)
             os.remove(targetSyncCheckFile) # remove the check file gotten from the target computer once it is does being used
             print(f"sync took {time.time() - tTimeS}")
             quit("synced all files")
     else:
         # if this is the case that assume that it has never synced before and zip the containing directory and then transfer and then unzip at destination
         print("here1")
-        scp(files, folderPath, targetPath, USERNAME, PASSWORD, TARGET_COMPUTER)
-
-
+        scp(files, folderPath, targetPath, username, password, target)
 
 
 if __name__ == "__main__":

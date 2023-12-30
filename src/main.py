@@ -285,7 +285,9 @@ def main():
 
     if args.destination:
         dest = args.destination
-        username, target = dest.split("@")
+        dest = dest.split("@")
+        username = dest[0]
+        target = dest[1]
     else:
         username, target = None, None
 
